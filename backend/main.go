@@ -57,8 +57,8 @@ func main() {
 	})
 
 	// Iniciar servidor
-	log.Println("Servidor iniciado en http://localhost:8080")
-	if err := router.Run(":8080"); err != nil {
+	log.Println("Servidor iniciado en http://localhost:8081")
+	if err := router.Run(":8081"); err != nil {
 		log.Fatal("Error iniciando el servidor:", err)
 	}
 }
