@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
-import type { FilterMatchMode } from '@primevue/core/api'
+
+// Default backend base URL
+axios.defaults.baseURL = 'http://localhost:8081/api/v1'
 
 // Interfaces para TypeScript
 interface Item {
@@ -19,11 +21,11 @@ interface Item {
 }
 
 interface Filters {
-  global: { value: string | null; matchMode: FilterMatchMode }
-  action: { value: string[] | null; matchMode: FilterMatchMode }
-  brokerage: { value: string[] | null; matchMode: FilterMatchMode }
-  rating_to: { value: string[] | null; matchMode: FilterMatchMode }
-  time: { value: Date | null; matchMode: FilterMatchMode }
+  action: { value: string[] | null; matchMode: string }
+  brokerage: { value: string | null; matchMode: string }
+  rating_to: { value: string | null; matchMode: string }
+  company: { value: string | null; matchMode: string }
+  time: { value: Date | string | null; matchMode: string }
 }
 
 export const useItemsStore = defineStore('items', () => {
@@ -31,10 +33,10 @@ export const useItemsStore = defineStore('items', () => {
   const items = ref<Item[]>([])
   const loading = ref(false)
   const filters = ref<Filters>({
-    global: { value: null, matchMode: 'contains' },
     action: { value: null, matchMode: 'in' },
-    brokerage: { value: null, matchMode: 'in' },
-    rating_to: { value: null, matchMode: 'in' },
+    brokerage: { value: null, matchMode: 'contains' },
+    rating_to: { value: null, matchMode: 'equals' },
+    company: { value: null, matchMode: 'contains' },
     time: { value: null, matchMode: 'dateIs' }
   })
 
@@ -49,6 +51,7 @@ export const useItemsStore = defineStore('items', () => {
     loading.value = true
     try {
       const response = await axios.get('/items')
+      console.log('Respuesta del servidor:', JSON.stringify(response.data))
       items.value = response.data
       console.log('Items cargados:', items.value.length)
     } catch (error) {
@@ -62,7 +65,7 @@ export const useItemsStore = defineStore('items', () => {
   async function syncItems() {
     loading.value = true
     try {
-      await axios.put('/items')
+      await axios.put('/items/')
       await fetchItems() // Recargar items después de sincronizar
     } catch (error) {
       console.error('Error sincronizando items:', error)
@@ -78,10 +81,10 @@ export const useItemsStore = defineStore('items', () => {
 
   function resetFilters() {
     filters.value = {
-      global: { value: null, matchMode: 'contains' },
       action: { value: null, matchMode: 'in' },
-      brokerage: { value: null, matchMode: 'in' },
-      rating_to: { value: null, matchMode: 'in' },
+      brokerage: { value: null, matchMode: 'contains' },
+      rating_to: { value: null, matchMode: 'equals' },
+      company: { value: null, matchMode: 'contains' },
       time: { value: null, matchMode: 'dateIs' }
     }
   }

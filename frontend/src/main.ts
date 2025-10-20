@@ -5,6 +5,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import PrimeVue from 'primevue/config';
 import Aura from '@primeuix/themes/aura';
+import { ToastService } from 'primevue';
 
 
 const app = createApp(App)
@@ -14,10 +15,11 @@ app.use(PrimeVue, {
     theme: {
         preset: Aura,
         options: {
-            darkModeSelector: false // asegúrate de mantenerlo en modo claro
+            darkModeSelector: false
         }
     }
 });
+app.use(ToastService)
 
 
 app.mount('#app')

@@ -1,51 +1,35 @@
 <script setup lang="ts">
-import axios from 'axios'
-import { onMounted, ref } from 'vue';
-import { DataTable, Column, Button, DatePicker, Select, MultiSelect, InputText } from 'primevue';
-import { FilterMatchMode } from '@primevue/core/api';
-axios.defaults.baseURL = 'http://localhost:8081/api/v1';
+import { onMounted } from 'vue';
+import { DataTable, Column, Button, DatePicker, Select, MultiSelect, InputText, Toast } from 'primevue';
+import { useToast } from 'primevue/usetoast';
+import { useItemsStore } from './stores/items';
+import { storeToRefs } from 'pinia';
 
-const items = ref([]);
-const loading = ref(false);
-// initialize option lists to empty arrays so controls don't receive undefined
-const listAcciones = ref<any[]>([]);
-const listBroker = ref<any[]>([]);
-const listRaiting = ref<any[]>([]);
-// initialize filters to an object to ensure DataTable's filter slots receive scope
-const filters = ref<any>({});
+const store = useItemsStore();
+const toast = useToast();
 
-onMounted(() => {
-  getItems();
-  init();
+onMounted(async () => {
+  try {
+    await store.fetchItems();
+    console.log('Items fetched:', store.items);
+    toast.add({ severity: 'success', summary: 'Éxito', detail: 'Datos cargados correctamente', life: 2000 });
+  } catch (e) {
+    toast.add({ severity: 'error', summary: 'Error', detail: String(e), life: 5000 });
+  }
+  // initialize/reset filters from store
+  store.resetFilters();
 });
 
-function getItems() {
-  loading.value = true;
-  axios.get('/items')
-    .then(response => {
-      console.log('Respuesta del backend:', response.data);
-      items.value = response.data;
-      listAcciones.value = [...new Set(items.value.map((item: { action: any; }) => item.action))];
-      listBroker.value = [...new Set(items.value.map((item: { brokerage: any; }) => item.brokerage))];
-      listRaiting.value = [...new Set(items.value.map((item: { rating_to: any; }) => item.rating_to))];
-    }).catch(error => {
-      console.error('Error al conectar con el backend:', error);
-    }).finally(() => {
-      loading.value = false;
-    });
+function updateItems() {
+  store.syncItems()
+    .then(() => toast.add({ severity: 'success', summary: 'Éxito', detail: 'Datos actualizados correctamente', life: 2000 }))
+    .catch((e) => toast.add({ severity: 'error', summary: 'Error', detail: String(e), life: 5000 }));
 }
 
-function init() {
-  // set initial filter shapes. MultiSelect-backed filters use arrays for `value`.
-  filters.value = {
-    global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    action: { value: [], matchMode: FilterMatchMode.IN },
-    brokerage: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    rating_to: { value: null, matchMode: FilterMatchMode.EQUALS },
-    company: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    time: { value: null, matchMode: FilterMatchMode.DATE_IS }
-  };
-}
+// Expose store state/getters to the template (Pinia refs are unwrapped in template
+const items = storeToRefs(store).items;
+const listBroker = store.listBroker;
+const listRaiting = store.listRating;
 </script>
 
 
@@ -54,6 +38,7 @@ function init() {
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recomendaciones de Analistas</title>
+    <Toast />
   </head>
 
   <div class="p-6 ">
@@ -61,17 +46,23 @@ function init() {
 
     <div class="card shadow-md rounded-2xl  p-4">
       <DataTable :value="items" paginator :rows="10" dataKey="ticker" filterDisplay="row" class="text-sm " removableSort
-        showGridlines stripedRows :loading="loading" v-model:filters="filters">
+        showGridlines stripedRows :loading="store.loading" v-model:filters="store.filters">
         <template #loading>
-          <div class="flex flex-column align-items-center justify-content-center h-100">
-            <i class="pi pi-spin pi-spinner text-4xl"></i>
-            <span class="mt-2 text-lg">Cargando datos...</span>
+          <div class="flex flex-column align-items-center justify-content-center ">
+            <span class="mt-2 text-4xl">Cargando datos...</span>
           </div>
         </template>
         <template #header>
           <div class="flex justify-between ">
             <span class="">Total de recomendaciones: {{ items.length }}</span>
-            <Button label="Actualizar informacion" icon="fa fa-solid fa-rotate-right" rounded raised />
+            <Button label="Actualizar informacion" icon="fa fa-solid fa-rotate-right" @click="updateItems" rounded
+              raised />
+          </div>
+        </template>
+        <template #empty>
+          <div class="flex flex-column align-items-center justify-content-center">
+            <i class="pi pi-info-circle text-4xl"></i>
+            <span class="mt-2 text-lg">No hay datos disponibles...</span>
           </div>
         </template>
         <Column field="time" filter filterField="time" header="Fecha" sortable>
@@ -86,7 +77,7 @@ function init() {
           </template>
         </Column>
 
-        <Column field="ticker" header="Ticker" sortable filter filterPlaceholder="Buscar ticker" />
+        <Column field="ticker" header="Símbolo" sortable filter filterPlaceholder="Buscar ticker" />
 
         <Column field="company" header="Empresa" sortable filter filterPlaceholder="Buscar empresa">
           <template #body="{ data }">
@@ -94,7 +85,7 @@ function init() {
           </template>
           <template #filter="{ filterModel, filterCallback }">
             <div v-if="filterModel">
-              <InputText v-model="filterModel.value" placeholder="Seleccionar empresa" :options="listBroker"
+              <InputText v-model="filterModel.value" placeholder="Seleccionar empresa" :options="store.listBroker"
                 @input="filterCallback" />
             </div>
           </template>
@@ -112,13 +103,13 @@ function init() {
           </template>
           <template #filter="{ filterModel, filterCallback }">
             <div v-if="filterModel">
-              <MultiSelect v-model="filterModel.value" placeholder="Seleccionar acción" :options="listAcciones"
+              <MultiSelect v-model="filterModel.value" placeholder="Seleccionar acción" :options="store.listAcciones"
                 @change="filterCallback" />
             </div>
           </template>
         </Column>
 
-        <Column header="Target" sortable>
+        <Column header="Objetivo" sortable>
           <template #body="{ data }">
             <span class="font-medium text-gray-800">{{ data.target_from }}</span>
             <span class="mx-1 text-gray-400">→</span>
@@ -126,8 +117,8 @@ function init() {
           </template>
         </Column>
 
-        <Column field="rating_to" filterField="rating_to" :showFilterMenu="false" header="Rating" sortable filter
-          filterPlaceholder="Filtrar rating">
+        <Column field="rating_to" filterField="rating_to" :showFilterMenu="false" header="Calificación" sortable filter
+          filterPlaceholder="Filtrar calificación">
           <template #body="{ data }">
             <span :class="{
               'bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs': data.rating_to === 'Buy',
@@ -146,8 +137,8 @@ function init() {
           </template>
         </Column>
 
-        <Column field="brokerage" header="Broker" filterField="brokerage" sortable filter
-          filterPlaceholder="Buscar broker">
+        <Column field="brokerage" header="Corredor" filterField="brokerage" sortable filter
+          filterPlaceholder="Buscar corredor">
           <template #body="{ data }">
             {{ data.brokerage || '—' }}
           </template>
