@@ -87,6 +87,11 @@ func (h *ItemHandler) GetItems(c *gin.Context) {
 		items = append(items, item)
 	}
 
+	if items == nil {
+		log.Println("\n\nNo hay items disponibles\n")
+		c.JSON(http.StatusNoContent, gin.H{"error": "No hay items disponibles"})
+	}
+
 	c.JSON(http.StatusOK, items)
 }
 
