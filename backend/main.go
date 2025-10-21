@@ -30,7 +30,7 @@ func main() {
 
 		//Si la solicitud es OPTIONS, responder con 204 para evitar preflight
 		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
+			c.AbortWithStatus(200)
 			return
 		}
 

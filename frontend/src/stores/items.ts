@@ -32,6 +32,7 @@ export const useItemsStore = defineStore('items', () => {
   // Estado
   const items = ref<Item[]>([])
   const loading = ref(false)
+  
   const filters = ref<Filters>({
     action: { value: null, matchMode: 'in' },
     brokerage: { value: null, matchMode: 'contains' },
@@ -52,21 +53,32 @@ export const useItemsStore = defineStore('items', () => {
     try {
       const response = await axios.get('/items')
       console.log('Respuesta del servidor:', JSON.stringify(response.data))
-      items.value = response.data
+      if (Array.isArray(response.data)) {
+        items.value = [...response.data]
+      } else {
+        console.error('La respuesta del servidor no es un array:', response.data)
+        items.value = []
+      }
       console.log('Items cargados:', items.value.length)
     } catch (error) {
       console.error('Error cargando items:', error)
+      items.value = []
       throw error
     } finally {
       loading.value = false
     }
   }
 
+  //Actualiza los datos del backend con la informacion de la API
   async function syncItems() {
     loading.value = true
     try {
-      await axios.put('/items/')
+      console.log('Iniciando sincronización...')
+      const syncResponse = await axios.put('/items/')
+      console.log('Sincronización completada:', syncResponse.status)
+      console.log('Recargando items...')
       await fetchItems() // Recargar items después de sincronizar
+      console.log('Items recargados. Nuevo total:', items.value.length)
     } catch (error) {
       console.error('Error sincronizando items:', error)
       throw error

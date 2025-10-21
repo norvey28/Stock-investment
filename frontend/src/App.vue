@@ -22,7 +22,10 @@ onMounted(async () => {
 
 function updateItems() {
   store.syncItems()
-    .then(() => toast.add({ severity: 'success', summary: 'Éxito', detail: 'Datos actualizados correctamente', life: 2000 }))
+    .then(() => {
+      console.log('Actualización completada. Items en el componente:', items.value.length);
+      toast.add({ severity: 'success', summary: 'Éxito', detail: 'Datos actualizados correctamente', life: 2000 });
+    })
     .catch((e) => toast.add({ severity: 'error', summary: 'Error', detail: String(e), life: 5000 }));
 }
 
@@ -45,7 +48,7 @@ const listRaiting = store.listRating;
     <h1 class="text-2xl font-semibold mb-4 ">Recomendaciones de Analistas</h1>
 
     <div class="card shadow-md rounded-2xl  p-4">
-      <DataTable :value="items" paginator :rows="10" dataKey="ticker" filterDisplay="row" class="text-sm " removableSort
+      <DataTable :value="items || []" paginator :rows="10" dataKey="ticker" filterDisplay="row" class="text-sm " removableSort
         showGridlines stripedRows :loading="store.loading" v-model:filters="store.filters">
         <template #loading>
           <div class="flex flex-column align-items-center justify-content-center ">

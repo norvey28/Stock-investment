@@ -89,7 +89,8 @@ func (h *ItemHandler) GetItems(c *gin.Context) {
 
 	if items == nil {
 		log.Println("\n\nNo hay items disponibles\n")
-		c.JSON(http.StatusNoContent, gin.H{"error": "No hay items disponibles"})
+		c.Status(http.StatusNoContent)
+		return
 	}
 
 	c.JSON(http.StatusOK, items)
@@ -142,9 +143,21 @@ func (h *ItemHandler) UpdateItems(c *gin.Context) {
 	// Eliminar todos los registros antes de insertar los nuevos. Esto evita
 	// la necesidad de hacer upserts y garantiza que la tabla refleje exactamente
 	// la información de la API después de la sincronización.
-	if _, err := h.DB.Exec("DELETE FROM items"); err != nil {
+	// Eliminar todos los registros antes de insertar los nuevos.
+	// Si no hay registros, RowsAffected será 0 y simplemente se continúa.
+	res, err := h.DB.Exec("DELETE FROM items")
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "error borrando registros: " + err.Error()})
 		return
+	}
+	if ra, err := res.RowsAffected(); err == nil {
+		if ra == 0 {
+			log.Println("No había registros en la tabla items; se continúa con la sincronización")
+		} else {
+			log.Printf("Registros borrados: %d\n", ra)
+		}
+	} else {
+		log.Println("No se pudo determinar el número de filas afectadas:", err)
 	}
 
 	// Inserción de datos paginados
