@@ -32,7 +32,6 @@ function updateItems() {
 // Expose store state/getters to the template (Pinia refs are unwrapped in template
 const items = storeToRefs(store).items;
 const listBroker = store.listBroker;
-const listRaiting = store.listRating;
 </script>
 
 
@@ -48,8 +47,8 @@ const listRaiting = store.listRating;
     <h1 class="text-2xl font-semibold mb-4 ">Recomendaciones de Analistas</h1>
 
     <div class="card shadow-md rounded-2xl  p-4">
-      <DataTable :value="items || []" paginator :rows="10" dataKey="ticker" filterDisplay="row" class="text-sm " removableSort
-        showGridlines stripedRows :loading="store.loading" v-model:filters="store.filters">
+      <DataTable :value="items || []" paginator :rows="10" dataKey="ticker" filterDisplay="row" class="text-sm "
+        removableSort showGridlines stripedRows :loading="store.loading" v-model:filters="store.filters">
         <template #loading>
           <div class="flex flex-column align-items-center justify-content-center ">
             <span class="mt-2 text-4xl">Cargando datos...</span>
@@ -68,15 +67,13 @@ const listRaiting = store.listRating;
             <span class="mt-2 text-lg">No hay datos disponibles...</span>
           </div>
         </template>
-        <Column field="time" filter filterField="time" header="Fecha" sortable>
+        <Column field="time" filter filterField="time" header="Fecha" dataType="date" sortable>
           <template #body="{ data }">
-            {{ new Date(data.time).toLocaleDateString() }}
+            {{ data.time.toLocaleDateString() }}
           </template>
           <template #filter="{ filterModel, filterCallback }">
-            <div v-if="filterModel">
-              <DatePicker v-model="filterModel.value" dateFormat="dd/mm/yy" placeholder="Seleccionar fecha"
-                @date-select="filterCallback" />
-            </div>
+            <DatePicker v-model="filterModel.value" dateFormat="dd/mm/yy" placeholder="Seleccionar fecha"
+              @value-change="filterCallback" />
           </template>
         </Column>
 
@@ -88,7 +85,7 @@ const listRaiting = store.listRating;
           </template>
           <template #filter="{ filterModel, filterCallback }">
             <div v-if="filterModel">
-              <InputText v-model="filterModel.value" placeholder="Seleccionar empresa" :options="store.listBroker"
+              <InputText v-model="filterModel.value" placeholder="Buscar empresa" :options="store.listBroker"
                 @input="filterCallback" />
             </div>
           </template>
@@ -97,9 +94,9 @@ const listRaiting = store.listRating;
         <Column field="action" filter filterField="action" header="Acción" sortable>
           <template #body="{ data }">
             <span :class="{
-              'text-green-600 font-semibold': data.action.includes('raised'),
-              'text-red-600 font-semibold': data.action.includes('lowered'),
-              'text-gray-600': data.action.includes('reiterated'),
+              'text-green-600 font-semibold': ['raised', 'upgraded'].some(t => (data.action || '').toLowerCase().includes(t)),
+              'text-gray-600': ['reiterated', 'initiated', 'target set'].some(t => (data.action || '').toLowerCase().includes(t)),
+              'text-red-600 font-semibold': ['lowered', 'downgraded'].some(t => (data.action || '').toLowerCase().includes(t)),
             }">
               {{ data.action }}
             </span>
@@ -124,10 +121,10 @@ const listRaiting = store.listRating;
           filterPlaceholder="Filtrar calificación">
           <template #body="{ data }">
             <span :class="{
-              'bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs': data.rating_to === 'Buy',
-              'bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs': data.rating_to === 'Neutral',
-              'bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs': data.rating_to === 'Sell',
-              'bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs': !['Buy', 'Neutral', 'Sell'].includes(data.rating_to)
+              'bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs': ['Buy', 'Strong-Buy', 'Speculative Buy', 'Overweight',].includes(data.rating_to),
+              'bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs': ['Outperform', 'Market Outperform', 'Sector Outperform', 'Positive'].includes(data.rating_to),
+              'bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs': ['Hold', 'Neutral', 'In-Line', 'Equal Weight', 'Market Perform', 'Sector Perform'].includes(data.rating_to),
+              'bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs': ['Underweight', 'Underperform', 'Reduce', 'Cautious', 'Sell'].includes(data.rating_to),
             }">
               {{ data.rating_to }}
             </span>
@@ -135,7 +132,7 @@ const listRaiting = store.listRating;
           <template #filter="{ filterModel, filterCallback }">
             <div v-if="filterModel">
               <Select @change="filterCallback()" :showClear="true" v-model="filterModel.value"
-                placeholder="Seleccionar Rating" :options="listRaiting" />
+                placeholder="Seleccionar Calificación" :options="store.listRating" />
             </div>
           </template>
         </Column>
