@@ -2,10 +2,10 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
 
-// Default backend base URL
+// URL por defecto para las solicitudes HTTP
 axios.defaults.baseURL = 'http://localhost:8081/api/v1'
 
-// Interfaces para TypeScript
+// Interface
 interface Item {
   id: string
   ticker: string
@@ -16,8 +16,9 @@ interface Item {
   brokerage: string
   rating_from: string
   rating_to: string
-  time: string
+  time: Date | string
   created_at: string
+  recommendation_score: number
 }
 
 interface Filters {
@@ -32,13 +33,13 @@ export const useItemsStore = defineStore('items', () => {
   // Estado
   const items = ref<Item[]>([])
   const loading = ref(false)
-  
+
   const filters = ref<Filters>({
     action: { value: null, matchMode: 'in' },
     brokerage: { value: null, matchMode: 'contains' },
     rating_to: { value: null, matchMode: 'equals' },
     company: { value: null, matchMode: 'contains' },
-    time: { value: null, matchMode: 'dateIs' }
+    time: { value: null, matchMode: 'dateAfter' }
   })
 
   // Getters computados
@@ -52,9 +53,18 @@ export const useItemsStore = defineStore('items', () => {
     loading.value = true
     try {
       const response = await axios.get('/items')
-      console.log('Respuesta del servidor:', JSON.stringify(response.data))
       if (Array.isArray(response.data)) {
         items.value = [...response.data]
+        for (const item of items.value) {
+          // Convertir las cadenas de fecha a objetos Date
+          item.time = new Date(item.time)
+          // Manejar valores nulos o indefinidos en rating_to
+          if (item.rating_to === null || item.rating_to === undefined || item.rating_to === '') {
+            item.rating_to = 'N/A'
+          }
+          //Calcular score de recomendacion
+          item.recommendation_score = calculateRecommendationScore(item)
+        }
       } else {
         console.error('La respuesta del servidor no es un array:', response.data)
         items.value = []
@@ -87,18 +97,79 @@ export const useItemsStore = defineStore('items', () => {
     }
   }
 
+  // Actualiza los filtros de búsqueda
   function updateFilters(newFilters: Partial<Filters>) {
     filters.value = { ...filters.value, ...newFilters }
   }
 
+  // Resetea los filtros a sus valores iniciales
   function resetFilters() {
     filters.value = {
       action: { value: null, matchMode: 'in' },
       brokerage: { value: null, matchMode: 'contains' },
       rating_to: { value: null, matchMode: 'equals' },
       company: { value: null, matchMode: 'contains' },
-      time: { value: null, matchMode: 'dateIs' }
+      time: { value: null, matchMode: 'dateAfter' }
     }
+  }
+
+  function calculateRecommendationScore(item: Item): number {
+    let score = 0
+    // Asignar puntos según rating_to
+    switch (item.rating_to) {
+      case 'Buy':
+      case 'Strong-Buy':
+      case 'Speculative Buy':
+      case 'Overweight':
+        score += 2
+        break
+      case 'Outperform':
+      case 'Market Outperform':
+      case 'Sector Outperform':
+      case 'Positive':
+        score += 1
+        break
+      case 'Hold':
+      case 'Neutral':
+      case 'In-Line':
+      case 'Equal Weight':
+      case 'Market Perform':
+      case 'Sector Perform':
+        score += 0
+        break
+      case 'Underweight':
+      case 'Underperform':
+      case 'Reduce':
+      case 'Cautious':
+        score -= 1
+        break
+      case 'Sell':
+        score -= 2
+      default:
+        score += 0
+    }
+
+    // Asignar puntos según action
+    switch (item.action) {
+      case 'upgraded by':
+        score += 2
+        break
+      case 'target raised by':
+        score += 1
+        break
+      case 'reiterated by':
+      case 'initiated by':
+      case 'target set by':
+        score += 0
+        break
+      case 'target lowered by':
+        score -= 1
+        break
+      case 'downgraded by':
+        score -= 2
+        break
+    }
+    return score;
   }
 
   return {
@@ -115,6 +186,7 @@ export const useItemsStore = defineStore('items', () => {
     fetchItems,
     syncItems,
     updateFilters,
-    resetFilters
+    resetFilters,
+    calculateRecommendationScore,
   }
 })
