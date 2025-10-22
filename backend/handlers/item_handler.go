@@ -131,6 +131,7 @@ func (h *ItemHandler) UpdateItems(c *gin.Context) {
 
 	apiKey := os.Getenv("SWE_API_KEY")
 	if apiKey == "" {
+		log.Fatal("\n\nSWE_API_KEY no está definida en las variables de entorno\n")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "SWE_API_KEY no definida en variables de entorno"})
 		return
 	}
