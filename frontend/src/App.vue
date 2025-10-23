@@ -32,6 +32,7 @@ function updateItems() {
 // Expose store state/getters to the template (Pinia refs are unwrapped in template
 const items = storeToRefs(store).items;
 const listBroker = store.listBroker;
+const listRaiting = store.listRating;
 </script>
 
 
@@ -43,12 +44,15 @@ const listBroker = store.listBroker;
     <Toast />
   </head>
 
-  <div class="p-6 ">
-    <h1 class="text-2xl font-semibold mb-4 ">Recomendaciones de Analistas</h1>
+  <div class="p-4 md:p-6 lg:p-8 max-w-[2000px] mx-auto">
+    <h1 class="text-2xl md:text-3xl lg:text-4xl font-bold mb-6 text-center text-gray-800">
+      Panel de Recomendaciones de Analistas
+    </h1>
 
-    <div class="card shadow-md rounded-2xl  p-4">
-      <DataTable :value="items || []" paginator :rows="10" dataKey="ticker" filterDisplay="row" class="text-sm "
-        removableSort showGridlines stripedRows :loading="store.loading" v-model:filters="store.filters">
+    <div class="card shadow-lg rounded-2xl p-4 mb-8 bg-white">
+      <DataTable :value="items || []" paginator :rows="10" dataKey="ticker" filterDisplay="row"
+        class="text-sm overflow-x-auto" removableSort showGridlines stripedRows :loading="store.loading"
+        v-model:filters="store.filters" responsiveLayout="scroll">
         <template #loading>
           <div class="flex flex-column align-items-center justify-content-center ">
             <span class="mt-2 text-4xl">Cargando datos...</span>
@@ -67,13 +71,15 @@ const listBroker = store.listBroker;
             <span class="mt-2 text-lg">No hay datos disponibles...</span>
           </div>
         </template>
-        <Column field="time" filter filterField="time" header="Fecha" dataType="date" sortable>
+        <Column field="time" filter filterField="time" header="Fecha" sortable>
           <template #body="{ data }">
-            {{ data.time.toLocaleDateString() }}
+            {{ new Date(data.time).toLocaleDateString() }}
           </template>
           <template #filter="{ filterModel, filterCallback }">
-            <DatePicker v-model="filterModel.value" dateFormat="dd/mm/yy" placeholder="Seleccionar fecha"
-              @value-change="filterCallback" />
+            <div v-if="filterModel">
+              <DatePicker v-model="filterModel.value" dateFormat="dd/mm/yy" placeholder="Seleccionar fecha"
+                @date-select="filterCallback" />
+            </div>
           </template>
         </Column>
 
@@ -85,7 +91,7 @@ const listBroker = store.listBroker;
           </template>
           <template #filter="{ filterModel, filterCallback }">
             <div v-if="filterModel">
-              <InputText v-model="filterModel.value" placeholder="Buscar empresa" :options="store.listBroker"
+              <InputText v-model="filterModel.value" placeholder="Seleccionar empresa" :options="store.listBroker"
                 @input="filterCallback" />
             </div>
           </template>
@@ -94,9 +100,9 @@ const listBroker = store.listBroker;
         <Column field="action" filter filterField="action" header="Acción" sortable>
           <template #body="{ data }">
             <span :class="{
-              'text-green-600 font-semibold': ['raised', 'upgraded'].some(t => (data.action || '').toLowerCase().includes(t)),
-              'text-gray-600': ['reiterated', 'initiated', 'target set'].some(t => (data.action || '').toLowerCase().includes(t)),
-              'text-red-600 font-semibold': ['lowered', 'downgraded'].some(t => (data.action || '').toLowerCase().includes(t)),
+              'text-green-600 font-semibold': data.action.includes('raised'),
+              'text-red-600 font-semibold': data.action.includes('lowered'),
+              'text-gray-600': data.action.includes('reiterated'),
             }">
               {{ data.action }}
             </span>
@@ -121,10 +127,10 @@ const listBroker = store.listBroker;
           filterPlaceholder="Filtrar calificación">
           <template #body="{ data }">
             <span :class="{
-              'bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs': ['Buy', 'Strong-Buy', 'Speculative Buy', 'Overweight',].includes(data.rating_to),
-              'bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs': ['Outperform', 'Market Outperform', 'Sector Outperform', 'Positive'].includes(data.rating_to),
-              'bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs': ['Hold', 'Neutral', 'In-Line', 'Equal Weight', 'Market Perform', 'Sector Perform'].includes(data.rating_to),
-              'bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs': ['Underweight', 'Underperform', 'Reduce', 'Cautious', 'Sell'].includes(data.rating_to),
+              'bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs': data.rating_to === 'Buy',
+              'bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs': data.rating_to === 'Neutral',
+              'bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs': data.rating_to === 'Sell',
+              'bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs': !['Buy', 'Neutral', 'Sell'].includes(data.rating_to)
             }">
               {{ data.rating_to }}
             </span>
@@ -132,7 +138,7 @@ const listBroker = store.listBroker;
           <template #filter="{ filterModel, filterCallback }">
             <div v-if="filterModel">
               <Select @change="filterCallback()" :showClear="true" v-model="filterModel.value"
-                placeholder="Seleccionar Calificación" :options="store.listRating" />
+                placeholder="Seleccionar Rating" :options="listRaiting" />
             </div>
           </template>
         </Column>
@@ -150,6 +156,186 @@ const listBroker = store.listBroker;
           </template>
         </Column>
       </DataTable>
+    </div>
+
+    <!-- Tablas de Recomendaciones Específicas -->
+    <div class="mt-8 bg-gray-50 p-4 md:p-6 lg:p-8 rounded-3xl">
+      <h2 class="text-2xl md:text-3xl font-bold mb-8 text-gray-800 text-center">Análisis por Tipo de Recomendación</h2>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Tabla de Recomendaciones de Compra -->
+        <div
+          class="card shadow-lg rounded-2xl p-4 md:p-6 bg-gradient-to-br from-green-50 to-white border border-green-100">
+          <div class="flex items-center mb-4">
+            <i class="pi pi-arrow-up text-xl md:text-2xl mr-2 text-green-600"></i>
+            <h3 class="text-lg md:text-xl font-bold text-green-700">Recomendaciones de Compra</h3>
+          </div>
+          <DataTable
+            :value="items?.filter(item => item.recommendation_score > 0).sort((a, b) => b.recommendation_score - a.recommendation_score) || []"
+            paginator :rows="5" dataKey="ticker" class="text-sm" removableSort showGridlines stripedRows>
+            <template #header>
+              <div class="flex flex-col md:flex-row justify-between items-center gap-2">
+                <div class="flex items-center">
+                  <span class="text-base md:text-lg font-semibold mr-2">Total:</span>
+                  <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full font-bold min-w-[2.5rem] text-center">
+                    {{items?.filter(item => item.recommendation_score > 0).length}}
+                  </span>
+                </div>
+                <div class="text-xs md:text-sm text-green-600 italic">Ordenado por mayor potencial</div>
+              </div>
+            </template>
+            <template #empty>
+              <div class="flex flex-column align-items-center justify-content-center">
+                <span class="mt-2 text-lg">No hay recomendaciones de compra disponibles</span>
+              </div>
+            </template>
+            <Column field="ticker" header="Símbolo" sortable />
+            <Column field="company" header="Empresa" sortable />
+            <Column header="Precio Objetivo">
+              <template #body="{ data }">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-2">
+                  <div class="flex items-center space-x-2">
+                    <span class="text-gray-500 text-sm md:text-base">{{ data.target_from }}</span>
+                    <i class="pi pi-arrow-right text-green-500"></i>
+                    <span class="font-bold text-green-700 text-sm md:text-base">{{ data.target_to }}</span>
+                  </div>
+                  <span class="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full whitespace-nowrap">
+                    {{ Math.round(((data.target_to - data.target_from) / data.target_from) * 100) }}%
+                  </span>
+                </div>
+              </template>
+            </Column>
+            <Column field="rating_to" header="Calificación" sortable>
+              <template #body="{ data }">
+                <span :class="{
+                  'bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs': ['Buy', 'Strong-Buy', 'Speculative Buy', 'Overweight'].includes(data.rating_to),
+                  'bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs': ['Outperform', 'Market Outperform', 'Sector Outperform', 'Positive'].includes(data.rating_to)
+                }">
+                  {{ data.rating_to }}
+                </span>
+              </template>
+            </Column>
+            <Column field="recommendation_score" header="Puntaje" sortable>
+              <template #body="{ data }">
+                <div class="flex items-center">
+                  <div class="w-12 h-2 bg-gradient-to-r from-green-200 to-green-500 rounded-full mr-2"
+                    :style="{ opacity: (data.recommendation_score / 5) + 0.2 }">
+                  </div>
+                  <span class="text-green-600 font-bold">+{{ data.recommendation_score }}</span>
+                </div>
+              </template>
+            </Column>
+          </DataTable>
+        </div>
+
+        <!-- Tabla de Recomendaciones de Mantener -->
+        <div
+          class="card shadow-lg rounded-2xl p-4 md:p-6 bg-gradient-to-br from-blue-50 to-white border border-blue-100">
+          <div class="flex items-center mb-4">
+            <i class="pi pi-minus text-xl md:text-2xl mr-2 text-blue-600"></i>
+            <h3 class="text-lg md:text-xl font-bold text-blue-700">Recomendaciones de Mantener</h3>
+          </div>
+          <DataTable :value="items?.filter(item => item.recommendation_score === 0) || []" paginator :rows="5"
+            dataKey="ticker" class="text-sm" removableSort showGridlines stripedRows>
+            <template #header>
+              <div class="flex flex-col md:flex-row justify-between items-center gap-2">
+                <div class="flex items-center">
+                  <span class="text-base md:text-lg font-semibold mr-2">Total:</span>
+                  <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-bold min-w-[2.5rem] text-center">
+                    {{items?.filter(item => item.recommendation_score === 0).length}}
+                  </span>
+                </div>
+                <div class="text-xs md:text-sm text-blue-600 italic">Recomendación neutral</div>
+              </div>
+            </template>
+            <template #empty>
+              <div class="flex flex-column align-items-center justify-content-center">
+                <span class="mt-2 text-lg">No hay recomendaciones neutras disponibles</span>
+              </div>
+            </template>
+            <Column field="ticker" header="Símbolo" sortable />
+            <Column field="company" header="Empresa" sortable />
+            <Column header="Precio Objetivo">
+              <template #body="{ data }">
+                <div class="flex items-center space-x-2">
+                  <span class="text-gray-500">{{ data.target_from }}</span>
+                  <i class="pi pi-arrow-right text-blue-500"></i>
+                  <span class="font-bold text-gray-700">{{ data.target_to }}</span>
+                  <span class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+                    {{ Math.round(((data.target_to - data.target_from) / data.target_from) * 100) }}%
+                  </span>
+                </div>
+              </template>
+            </Column>
+            <Column field="rating_to" header="Calificación" sortable>
+              <template #body="{ data }">
+                <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs">
+                  {{ data.rating_to }}
+                </span>
+              </template>
+            </Column>
+            <Column field="recommendation_score" header="Puntaje" sortable />
+          </DataTable>
+        </div>
+
+        <!-- Tabla de Recomendaciones de Venta -->
+        <div class="card shadow-lg rounded-2xl p-4 md:p-6 bg-gradient-to-br from-red-50 to-white border border-red-100">
+          <div class="flex items-center mb-4">
+            <i class="pi pi-arrow-down text-xl md:text-2xl mr-2 text-red-600"></i>
+            <h3 class="text-lg md:text-xl font-bold text-red-700">Recomendaciones de Venta</h3>
+          </div>
+          <DataTable
+            :value="items?.filter(item => item.recommendation_score < 0).sort((a, b) => a.recommendation_score - b.recommendation_score) || []"
+            paginator :rows="5" dataKey="ticker" class="text-sm" removableSort showGridlines stripedRows>
+            <template #header>
+              <div class="flex flex-col md:flex-row justify-between items-center gap-2">
+                <div class="flex items-center">
+                  <span class="text-base md:text-lg font-semibold mr-2">Total:</span>
+                  <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full font-bold min-w-[2.5rem] text-center">
+                    {{items?.filter(item => item.recommendation_score < 0).length}} </span>
+                </div>
+                <div class="text-xs md:text-sm text-red-600 italic">Ordenado por mayor urgencia de venta</div>
+              </div>
+            </template>
+            <template #empty>
+              <div class="flex flex-column align-items-center justify-content-center">
+                <span class="mt-2 text-lg">No hay recomendaciones de venta disponibles</span>
+              </div>
+            </template>
+            <Column field="ticker" header="Símbolo" sortable />
+            <Column field="company" header="Empresa" sortable />
+            <Column header="Precio Objetivo">
+              <template #body="{ data }">
+                <div class="flex items-center space-x-2">
+                  <span class="text-gray-500">{{ data.target_from }}</span>
+                  <i class="pi pi-arrow-right text-red-500"></i>
+                  <span class="font-bold text-red-700">{{ data.target_to }}</span>
+                  <span class="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full">
+                    {{ Math.round(((data.target_to - data.target_from) / data.target_from) * 100) }}%
+                  </span>
+                </div>
+              </template>
+            </Column>
+            <Column field="rating_to" header="Calificación" sortable>
+              <template #body="{ data }">
+                <span class="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs">
+                  {{ data.rating_to }}
+                </span>
+              </template>
+            </Column>
+            <Column field="recommendation_score" header="Puntaje" sortable>
+              <template #body="{ data }">
+                <div class="flex items-center">
+                  <div class="w-12 h-2 bg-gradient-to-r from-red-500 to-red-200 rounded-full mr-2"
+                    :style="{ opacity: (Math.abs(data.recommendation_score) / 5) + 0.2 }">
+                  </div>
+                  <span class="text-red-600 font-bold">{{ data.recommendation_score }}</span>
+                </div>
+              </template>
+            </Column>
+          </DataTable>
+        </div>
+      </div>
     </div>
   </div>
 </template>
