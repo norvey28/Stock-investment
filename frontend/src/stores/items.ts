@@ -169,7 +169,12 @@ export const useItemsStore = defineStore('items', () => {
         score -= 2
         break
     }
+
+    if(item.brokerage !== ''){
+      score += 0.5; // Añadir puntaje positivo si la recomendacion una fuente no anónima
+    }
     return score;
+    
   }
 
   return {
