@@ -88,7 +88,7 @@ func (h *ItemHandler) GetItems(c *gin.Context) {
 	}
 
 	if items == nil {
-		log.Println("\n\nNo hay items disponibles\n")
+		log.Println("\n\nNo hay items disponibles")
 		c.Status(http.StatusNoContent)
 		return
 	}
