@@ -141,9 +141,6 @@ func (h *ItemHandler) UpdateItems(c *gin.Context) {
 	baseURL := "https://api.karenai.click/swechallenge/list"
 	nextURL := baseURL
 
-	// Eliminar todos los registros antes de insertar los nuevos. Esto evita
-	// la necesidad de hacer upserts y garantiza que la tabla refleje exactamente
-	// la información de la API después de la sincronización.
 	// Eliminar todos los registros antes de insertar los nuevos.
 	// Si no hay registros, RowsAffected será 0 y simplemente se continúa.
 	res, err := h.DB.Exec("DELETE FROM items")
@@ -151,6 +148,7 @@ func (h *ItemHandler) UpdateItems(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "error borrando registros: " + err.Error()})
 		return
 	}
+	// Validar cuántas filas fueron afectadas y evitar error si no hay registros
 	if ra, err := res.RowsAffected(); err == nil {
 		if ra == 0 {
 			log.Println("No había registros en la tabla items; se continúa con la sincronización")
@@ -172,6 +170,7 @@ func (h *ItemHandler) UpdateItems(c *gin.Context) {
 		reqHTTP.Header.Set("Authorization", "Bearer "+apiKey)
 		reqHTTP.Header.Set("Accept", "application/json")
 
+		// Hacer request
 		resp, err := client.Do(reqHTTP)
 		if err != nil {
 			c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
@@ -186,6 +185,7 @@ func (h *ItemHandler) UpdateItems(c *gin.Context) {
 			NextPage *string       `json:"next_page"`
 		}
 
+		// Decodificar respuesta
 		dec := json.NewDecoder(resp.Body)
 		if err := dec.Decode(&body); err != nil {
 			resp.Body.Close()
@@ -211,16 +211,13 @@ func (h *ItemHandler) UpdateItems(c *gin.Context) {
 		if body.NextPage == nil || *body.NextPage == "" {
 			break
 		}
-		// Si next_page es una URL absoluta, usarla; si es solo un token, anexarlo como ?next_page=token
+
+		// Construir URL para la siguiente página
 		np := *body.NextPage
-		if u, err := url.Parse(np); err == nil && u.Scheme != "" && u.Host != "" {
-			nextURL = np
-		} else {
-			// construir URL con query
-			q := url.Values{}
-			q.Set("next_page", np)
-			nextURL = baseURL + "?" + q.Encode()
-		}
+		q := url.Values{}
+		q.Set("next_page", np)
+		nextURL = baseURL + "?" + q.Encode()
+
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Sincronización completada"})
