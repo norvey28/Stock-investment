@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import axios from 'axios'
 
 // URL por defecto para las solicitudes HTTP
+//Se hardcodea localhost para desarrollo local
 axios.defaults.baseURL = 'http://localhost:8081/api/v1'
 
 // Interface
@@ -48,7 +49,7 @@ export const useItemsStore = defineStore('items', () => {
   const listRating = computed(() => [...new Set(items.value.map(item => item.rating_to))])
   const totalItems = computed(() => items.value.length)
 
-  // Acciones
+  // Consulta de items desde el backend
   async function fetchItems() {
     loading.value = true
     try {
@@ -171,7 +172,7 @@ export const useItemsStore = defineStore('items', () => {
     }
 
     if(item.brokerage !== ''){
-      score += 0.5; // Añadir puntaje positivo si la recomendacion una fuente no anónima
+      score += 0.5; // Añadir puntaje positivo si la recomendacion es de una fuente no anónima
     }
     return score;
     
